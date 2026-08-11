@@ -60,13 +60,13 @@ if __name__ == "__main__":
     dt_string_for_save = now.strftime("%d_%m_%Y_%H_%M")
     # Operations commands
     commands = {
-        "SAVE_TO_FILE": True,  # Saving results to file or present them over CMD
-        "CREATE_DATA": False,  # Creating new dataset
-        "LOAD_DATA": True,  # Loading data from exist dataset
-        "LOAD_MODEL": True,  # Load specific model for training
-        "TRAIN_MODEL": True,  # Applying training operation
+        "SAVE_TO_FILE": False,  # Saving results to file or present them over CMD
+        "CREATE_DATA": True,  # Creating new dataset
+        "LOAD_DATA": False,  # Loading data from exist dataset
+        "LOAD_MODEL": False,  # Load specific model for training
+        "TRAIN_MODEL": False,  # Applying training operation
         "SAVE_MODEL": False,  # Saving tuned model
-        "EVALUATE_MODE": True,  # Evaluating desired algorithms
+        "EVALUATE_MODE": False,  # Evaluating desired algorithms
     }
     # Saving simulation scores to external file
     if commands["SAVE_TO_FILE"]:
@@ -81,7 +81,8 @@ if __name__ == "__main__":
         .set_parameter("M", 3)
         .set_parameter("T", 200)
         .set_parameter("snr", 10)
-        .set_parameter("signal_type", "NarrowBand")
+        .set_parameter("signal_type", "Broadband")
+        .set_parameter("freq_values", [300, 3400])
         .set_parameter("signal_nature", "non-coherent")
         .set_parameter("eta", 0)
         .set_parameter("bias", 0.05)
@@ -91,7 +92,7 @@ if __name__ == "__main__":
     model_config = (
         ModelGenerator()
         .set_model_type("SubspaceNet")
-        .set_diff_method("esprit")
+        .set_diff_method("root_music")
         .set_tau(8)
         .set_model(system_model_params)
     )

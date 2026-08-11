@@ -13,7 +13,7 @@ The implemented models:
     * DeepRootMUSIC: model-based deep learning algorithm as described in:
         [1] D. H. Shmuel, J. P. Merkofer, G. Revach, R. J. G. van Sloun and N. Shlezinger,
         "Deep Root Music Algorithm for Data-Driven Doa Estimation," ICASSP 2023 - 
-        2023 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP),
+        2023 IEEE International Conference on Acoustics, speech and Signal Processing (ICASSP),
         Rhodes Island, Greece, 2023, pp. 1-5, doi: 10.1109/ICASSP49357.2023.10096504.
         
     * SubspaceNet: model-based deep learning algorithm as described in:
@@ -22,7 +22,7 @@ The implemented models:
     * DA-MUSIC: Deep Augmented MUSIC model-based deep learning algorithm as described in
         [3] J. P. Merkofer, G. Revach, N. Shlezinger, and R. J. van Sloun, “Deep
         augmented MUSIC algorithm for data-driven DoA estimation,” in IEEE
-        International Conference on Acoustics, Speech and Signal Processing
+        International Conference on Acoustics, speech and Signal Processing
         (ICASSP), 2022, pp. 3598-3602."
         
     * DeepCNN: Deep learning algorithm as described in:

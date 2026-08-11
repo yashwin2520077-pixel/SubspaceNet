@@ -16,6 +16,9 @@ This class is used for defining the samples model.
 import numpy as np
 from src.system_model import SystemModel, SystemModelParams
 from src.utils import D2R
+import scipy.io.wavfile as wavfile
+from scipy.signal import resample
+from pathlib import Path
 
 
 class Samples(SystemModel):
@@ -38,16 +41,27 @@ class Samples(SystemModel):
         signal_creation(signal_mean=0, signal_variance=1, SNR=10): Creates signals based on the specified mode and parameters.
     """
 
-    def __init__(self, system_model_params: SystemModelParams):
-        """Initializes a Samples object.
-
-        Args:
-        -----
-        system_model_params (SystemModelParams): an instance of SystemModelParams,
-            containing all relevant system model parameters.
-
-        """
+    def __init__(self, system_model_params: SystemModelParams, speech_dir=None):
         super().__init__(system_model_params)
+        # Load speech files if provided
+        self.speech_signals = []
+        if speech_dir is not None:
+            speech_path = Path(speech_dir)
+            wav_files = sorted(speech_path.glob("*.wav"))
+            for wav_file in wav_files[:system_model_params.M]:
+                sr, data = wavfile.read(str(wav_file))
+                # Convert to mono if stereo
+                if len(data.shape) > 1:
+                    data = data[:, 0]
+                # Normalize to [-1, 1]
+                data = data.astype(np.float64) / np.max(np.abs(data))
+                # Resample to match system sampling rate
+                if self.params.signal_type == "Broadband":
+                    target_sr = self.f_sampling["Broadband"]
+                    num_samples = int(len(data) * target_sr / sr)
+                    data = resample(data, num_samples)
+                self.speech_signals.append(data)
+            print(f"Loaded {len(self.speech_signals)} speech files")
 
     def set_doa(self, doa):
         """
@@ -240,22 +254,60 @@ class Samples(SystemModel):
 
         # OFDM Broadband signal creation
         elif self.params.signal_type.startswith("Broadband"):
-            num_sub_carriers = self.max_freq[
-                "Broadband"
-            ]  # number of subcarriers per signal
-            if self.params.signal_nature == "non-coherent":
-                # create M non-coherent signals
-                signal = np.zeros(
-                    (self.params.M, len(self.time_axis["Broadband"]))
-                ) + 1j * np.zeros((self.params.M, len(self.time_axis["Broadband"])))
+            num_sub_carriers = self.max_freq["Broadband"]
+            time_len = len(self.time_axis["Broadband"])
+
+            # If real speech files are loaded, use them
+            if hasattr(self, 'speech_signals') and len(self.speech_signals) > 0:
+                signal = np.zeros((self.params.M, time_len)) + 1j * np.zeros((self.params.M, time_len))
                 for i in range(self.params.M):
+                    speech = self.speech_signals[i % len(self.speech_signals)]
+                    max_start = len(speech) - time_len
+                    if max_start > 0:
+                        start_idx = np.random.randint(0, max_start)
+                    else:
+                        start_idx = 0
+                    segment = speech[start_idx:start_idx + time_len]
+                    if len(segment) < time_len:
+                        segment = np.pad(segment, (0, time_len - len(segment)))
+                    signal[i] = amplitude * segment / np.std(segment)
+                return np.fft.fft(signal)
+
+            # Otherwise use synthetic OFDM
+            else:
+                if self.params.signal_nature == "non-coherent":
+                    signal = np.zeros(
+                        (self.params.M, time_len)
+                    ) + 1j * np.zeros((self.params.M, time_len))
+                    for i in range(self.params.M):
+                        for j in range(num_sub_carriers):
+                            sig_amp = (
+                                    amplitude
+                                    * (np.sqrt(2) / 2)
+                                    * (np.random.randn(1) + 1j * np.random.randn(1))
+                            )
+                            signal[i] += sig_amp * np.exp(
+                                1j
+                                * 2
+                                * np.pi
+                                * j
+                                * len(self.f_rng["Broadband"])
+                                * self.time_axis["Broadband"]
+                                / num_sub_carriers
+                            )
+                        signal[i] *= 1 / num_sub_carriers
+                    return np.fft.fft(signal)
+                elif self.params.signal_nature == "coherent":
+                    signal = np.zeros(
+                        (1, time_len)
+                    ) + 1j * np.zeros((1, time_len))
                     for j in range(num_sub_carriers):
                         sig_amp = (
-                            amplitude
-                            * (np.sqrt(2) / 2)
-                            * (np.random.randn(1) + 1j * np.random.randn(1))
+                                amplitude
+                                * (np.sqrt(2) / 2)
+                                * (np.random.randn(1) + 1j * np.random.randn(1))
                         )
-                        signal[i] += sig_amp * np.exp(
+                        signal += sig_amp * np.exp(
                             1j
                             * 2
                             * np.pi
@@ -264,34 +316,13 @@ class Samples(SystemModel):
                             * self.time_axis["Broadband"]
                             / num_sub_carriers
                         )
-                    signal[i] *= 1 / num_sub_carriers
-                return np.fft.fft(signal)
-            # Coherent signals: same amplitude and phase for all signals
-            elif self.params.signal_nature == "coherent":
-                signal = np.zeros(
-                    (1, len(self.time_axis["Broadband"]))
-                ) + 1j * np.zeros((1, len(self.time_axis["Broadband"])))
-                for j in range(num_sub_carriers):
-                    sig_amp = (
-                        amplitude
-                        * (np.sqrt(2) / 2)
-                        * (np.random.randn(1) + 1j * np.random.randn(1))
+                    signal *= 1 / num_sub_carriers
+                    return np.tile(np.fft.fft(signal), (self.params.M, 1))
+                else:
+                    raise Exception(
+                        f"signal nature {self.params.signal_nature} is not defined"
                     )
-                    signal += sig_amp * np.exp(
-                        1j
-                        * 2
-                        * np.pi
-                        * j
-                        * len(self.f_rng["Broadband"])
-                        * self.time_axis["Broadband"]
-                        / num_sub_carriers
-                    )
-                signal *= 1 / num_sub_carriers
-                return np.tile(np.fft.fft(signal), (self.params.M, 1))
-            else:
-                raise Exception(
-                    f"signal nature {self.params.signal_nature} is not defined"
-                )
 
         else:
             raise Exception(f"signal type {self.params.signal_type} is not defined")
+

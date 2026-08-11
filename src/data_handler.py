@@ -71,7 +71,13 @@ def create_dataset(
     """
     generic_dataset = []
     model_dataset = []
-    samples_model = Samples(system_model_params)
+    from pathlib import Path
+    speech_dir = Path.cwd() / "data" / "speech"
+    if speech_dir.exists() and any(speech_dir.glob("*.wav")):
+        samples_model = Samples(system_model_params, speech_dir=str(speech_dir))
+    else:
+        samples_model = Samples(system_model_params)
+
     # Generate permutations for CNN model training dataset
     if model_type.startswith("DeepCNN") and phase.startswith("train"):
         doa_permutations = []
