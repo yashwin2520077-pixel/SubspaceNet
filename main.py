@@ -81,7 +81,7 @@ if __name__ == "__main__":
         .set_parameter("M", 3)
         .set_parameter("T", 200)
         .set_parameter("snr", 10)
-        .set_parameter("signal_type", "Narrowband")
+        .set_parameter("signal_type", "NarrowBand")
         .set_parameter("signal_nature", "non-coherent")
         .set_parameter("eta", 0)
         .set_parameter("bias", 0.05)
