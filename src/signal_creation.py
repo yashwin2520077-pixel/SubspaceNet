@@ -204,7 +204,7 @@ class Samples(SystemModel):
                 f"Samples.noise_creation: signal type {self.params.signal_type} is not defined"
             )
 
-    def signal_creation(self, signal_mean: float = 0, signal_variance: float = 1):
+        def signal_creation(self, signal_mean: float = 0, signal_variance: float = 1):
         """
         Creates signals based on the specified signal nature and parameters.
 
@@ -224,7 +224,7 @@ class Samples(SystemModel):
         """
         amplitude = 10 ** (self.params.snr / 10)
         # NarrowBand signal creation
-                      if self.params.signal_type == "NarrowBand":
+        if self.params.signal_type == "NarrowBand":
             # If real speech files are loaded, use them
             if hasattr(self, 'speech_signals') and len(self.speech_signals) > 0:
                 if not hasattr(self, '_speech_printed'):
