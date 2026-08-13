@@ -20,42 +20,23 @@ import scipy.io.wavfile as wavfile
 from scipy.signal import resample
 from pathlib import Path
 
-
 class Samples(SystemModel):
     """
     Class used for defining and creating signals and observations.
     Inherits from SystemModel class.
-
-    ...
-
-    Attributes:
-    -----------
-        doa (np.ndarray): Array of angels (directions) of arrival.
-
-    Methods:
-    --------
-        set_doa(doa): Sets the direction of arrival (DOA) for the signals.
-        samples_creation(noise_mean: float = 0, noise_variance: float = 1, signal_mean: float = 0,
-            signal_variance: float = 1): Creates samples based on the specified mode and parameters.
-        noise_creation(noise_mean, noise_variance): Creates noise based on the specified mean and variance.
-        signal_creation(signal_mean=0, signal_variance=1, SNR=10): Creates signals based on the specified mode and parameters.
     """
 
     def __init__(self, system_model_params: SystemModelParams, speech_dir=None):
         super().__init__(system_model_params)
-        # Load speech files if provided
         self.speech_signals = []
         if speech_dir is not None:
             speech_path = Path(speech_dir)
             wav_files = sorted(speech_path.glob("*.wav"))
             for wav_file in wav_files[:system_model_params.M]:
                 sr, data = wavfile.read(str(wav_file))
-                # Convert to mono if stereo
                 if len(data.shape) > 1:
                     data = data[:, 0]
-                # Normalize to [-1, 1]
                 data = data.astype(np.float64) / np.max(np.abs(data))
-                # Resample to match system sampling rate
                 if self.params.signal_type == "Broadband":
                     target_sr = self.f_sampling["Broadband"]
                     num_samples = int(len(data) * target_sr / sr)
@@ -64,27 +45,7 @@ class Samples(SystemModel):
             print(f"Loaded {len(self.speech_signals)} speech files")
 
     def set_doa(self, doa):
-        """
-        Sets the direction of arrival (DOA) for the signals.
-
-        Args:
-        -----
-            doa (np.ndarray): Array containing the DOA values.
-
-        """
-
         def create_doa_with_gap(gap: float):
-            """Create angles with a value gap.
-
-            Args:
-            -----
-                gap (float): Minimal gap value.
-
-            Returns:
-            --------
-                np.ndarray: DOA array.
-
-            """
             M = self.params.M
             while True:
                 DOA = np.round(np.random.rand(M) * 180, decimals=2) - 90
@@ -99,10 +60,8 @@ class Samples(SystemModel):
             return DOA
 
         if doa == None:
-            # Generate angels with gap greater than 0.2 rad (nominal case)
             self.doa = np.array(create_doa_with_gap(gap=15)) * D2R
         else:
-            # Generate
             self.doa = np.array(doa) * D2R
 
     def samples_creation(
@@ -112,40 +71,16 @@ class Samples(SystemModel):
         signal_mean: float = 0,
         signal_variance: float = 1,
     ):
-        """Creates samples based on the specified mode and parameters.
-
-        Args:
-        -----
-            noise_mean (float, optional): Mean of the noise. Defaults to 0.
-            noise_variance (float, optional): Variance of the noise. Defaults to 1.
-            signal_mean (float, optional): Mean of the signal. Defaults to 0.
-            signal_variance (float, optional): Variance of the signal. Defaults to 1.
-
-        Returns:
-        --------
-            tuple: Tuple containing the created samples, signal, steering vectors, and noise.
-
-        Raises:
-        -------
-            Exception: If the signal_type is not defined.
-
-        """
-        # Generate signal matrix
         signal = self.signal_creation(signal_mean, signal_variance)
-        # Generate noise matrix
         noise = self.noise_creation(noise_mean, noise_variance)
-        # Generate Narrowband samples
         if self.params.signal_type.startswith("NarrowBand"):
             A = np.array([self.steering_vec(theta) for theta in self.doa]).T
             samples = (A @ signal) + noise
             return samples, signal, A, noise
-        # Generate Broadband samples
         elif self.params.signal_type.startswith("Broadband"):
             samples = []
             SV = []
-
             for idx in range(self.f_sampling["Broadband"]):
-                # mapping from index i to frequency f
                 if idx > int(self.f_sampling["Broadband"]) // 2:
                     f = -int(self.f_sampling["Broadband"]) + idx
                 else:
@@ -163,19 +98,6 @@ class Samples(SystemModel):
             )
 
     def noise_creation(self, noise_mean, noise_variance):
-        """Creates noise based on the specified mean and variance.
-
-        Args:
-        -----
-            noise_mean (float): Mean of the noise.
-            noise_variance (float): Variance of the noise.
-
-        Returns:
-        --------
-            np.ndarray: Generated noise.
-
-        """
-        # for NarrowBand signal_type Noise represented in the time domain
         if self.params.signal_type.startswith("NarrowBand"):
             return (
                 np.sqrt(noise_variance)
@@ -186,7 +108,6 @@ class Samples(SystemModel):
                 )
                 + noise_mean
             )
-        # for Broadband signal_type Noise represented in the frequency domain
         elif self.params.signal_type.startswith("Broadband"):
             noise = (
                 np.sqrt(noise_variance)
@@ -204,24 +125,7 @@ class Samples(SystemModel):
                 f"Samples.noise_creation: signal type {self.params.signal_type} is not defined"
             )
 
-        def signal_creation(self, signal_mean: float = 0, signal_variance: float = 1):
-        """
-        Creates signals based on the specified signal nature and parameters.
-
-        Args:
-        -----
-            signal_mean (float, optional): Mean of the signal. Defaults to 0.
-            signal_variance (float, optional): Variance of the signal. Defaults to 1.
-
-        Returns:
-        --------
-            np.ndarray: Created signals.
-
-        Raises:
-        -------
-            Exception: If the signal type is not defined.
-            Exception: If the signal nature is not defined.
-        """
+    def signal_creation(self, signal_mean: float = 0, signal_variance: float = 1):
         amplitude = 10 ** (self.params.snr / 10)
         # NarrowBand signal creation
         if self.params.signal_type == "NarrowBand":
@@ -273,8 +177,7 @@ class Samples(SystemModel):
                 )
                 return np.repeat(sig, self.params.M, axis=0)
 
-
-        # OFDM Broadband signal creation
+        # Broadband signal creation
         elif self.params.signal_type.startswith("Broadband"):
             num_sub_carriers = self.max_freq["Broadband"]
             time_len = len(self.time_axis["Broadband"])
@@ -304,9 +207,9 @@ class Samples(SystemModel):
                     for i in range(self.params.M):
                         for j in range(num_sub_carriers):
                             sig_amp = (
-                                    amplitude
-                                    * (np.sqrt(2) / 2)
-                                    * (np.random.randn(1) + 1j * np.random.randn(1))
+                                amplitude
+                                * (np.sqrt(2) / 2)
+                                * (np.random.randn(1) + 1j * np.random.randn(1))
                             )
                             signal[i] += sig_amp * np.exp(
                                 1j
@@ -325,9 +228,9 @@ class Samples(SystemModel):
                     ) + 1j * np.zeros((1, time_len))
                     for j in range(num_sub_carriers):
                         sig_amp = (
-                                amplitude
-                                * (np.sqrt(2) / 2)
-                                * (np.random.randn(1) + 1j * np.random.randn(1))
+                            amplitude
+                            * (np.sqrt(2) / 2)
+                            * (np.random.randn(1) + 1j * np.random.randn(1))
                         )
                         signal += sig_amp * np.exp(
                             1j
@@ -347,4 +250,3 @@ class Samples(SystemModel):
 
         else:
             raise Exception(f"signal type {self.params.signal_type} is not defined")
-
