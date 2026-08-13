@@ -224,9 +224,31 @@ class Samples(SystemModel):
         """
         amplitude = 10 ** (self.params.snr / 10)
         # NarrowBand signal creation
-        if self.params.signal_type == "NarrowBand":
-            if self.params.signal_nature == "non-coherent":
-                # create M non-coherent signals
+                      if self.params.signal_type == "NarrowBand":
+            # If real speech files are loaded, use them
+            if hasattr(self, 'speech_signals') and len(self.speech_signals) > 0:
+                if not hasattr(self, '_speech_printed'):
+                    print(f"Using {len(self.speech_signals)} real speech files (NarrowBand)")
+                    self._speech_printed = True
+                signal = np.zeros((self.params.M, self.params.T), dtype=complex)
+                for i in range(self.params.M):
+                    speech = self.speech_signals[i % len(self.speech_signals)]
+                    max_start = len(speech) - self.params.T
+                    if max_start > 0:
+                        start_idx = np.random.randint(0, max_start)
+                    else:
+                        start_idx = 0
+                    segment = speech[start_idx:start_idx + self.params.T]
+                    if len(segment) < self.params.T:
+                        segment = np.pad(segment, (0, self.params.T - len(segment)))
+                    signal[i] = amplitude * segment / np.std(segment)
+                return signal
+
+            # Otherwise use synthetic signals (original code)
+            elif self.params.signal_nature == "non-coherent":
+                if not hasattr(self, '_synth_printed'):
+                    print("No speech files, using synthetic signals")
+                    self._synth_printed = True
                 return (
                     amplitude
                     * (np.sqrt(2) / 2)
@@ -239,7 +261,6 @@ class Samples(SystemModel):
                 )
 
             elif self.params.signal_nature == "coherent":
-                # Coherent signals: same amplitude and phase for all signals
                 sig = (
                     amplitude
                     * (np.sqrt(2) / 2)
@@ -251,6 +272,7 @@ class Samples(SystemModel):
                     + signal_mean
                 )
                 return np.repeat(sig, self.params.M, axis=0)
+
 
         # OFDM Broadband signal creation
         elif self.params.signal_type.startswith("Broadband"):
