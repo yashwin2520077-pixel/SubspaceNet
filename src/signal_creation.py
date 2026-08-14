@@ -145,9 +145,11 @@ class Samples(SystemModel):
                     segment = speech[start_idx:start_idx + self.params.T]
                     if len(segment) < self.params.T:
                         segment = np.pad(segment, (0, self.params.T - len(segment)))
-                    signal[i] = amplitude * segment / np.std(segment)
-                return signal
+                    from scipy.signal import hilbert
+                    analytic = hilbert(segment)
+                    signal[i] = amplitude * analytic / np.std(np.abs(analytic))
 
+                return signal
             # Otherwise use synthetic signals (original code)
             elif self.params.signal_nature == "non-coherent":
                 if not hasattr(self, '_synth_printed'):
