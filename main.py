@@ -163,7 +163,7 @@ if __name__ == "__main__":
             .set_batch_size(2048)
             .set_epochs(80)
             .set_model(model=model_config)
-            .set_optimizer(optimizer="Adam", learning_rate=0.00001, weight_decay=1e-9)
+            .set_optimizer(optimizer="Adam", learning_rate=0.001, weight_decay=1e-9)
             .set_training_dataset(train_dataset)
             .set_schedular(step_size=80, gamma=0.2)
             .set_criterion()
