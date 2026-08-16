@@ -1,4 +1,4 @@
-"""Subspace-Net 
+"""Subspace-Net
 Details
 ----------
 Name: signal_creation.py
@@ -150,6 +150,7 @@ class Samples(SystemModel):
                     signal[i] = amplitude * analytic / np.std(np.abs(analytic))
 
                 return signal
+
             # Otherwise use synthetic signals (original code)
             elif self.params.signal_nature == "non-coherent":
                 if not hasattr(self, '_synth_printed'):
